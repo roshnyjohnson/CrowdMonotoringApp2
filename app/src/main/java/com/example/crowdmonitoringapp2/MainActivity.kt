@@ -1,34 +1,64 @@
 package com.example.crowdmonitoringapp2
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
+import android.widget.Switch
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import android.widget.TextView
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var cameraView: PreviewView
-    private lateinit var peopleText: TextView
-    private lateinit var densityText: TextView
+    private lateinit var previewView: PreviewView
+    private lateinit var peopleCountText: TextView
+    private lateinit var bgSwitch: Switch
 
-    private val handler = Handler(Looper.getMainLooper())
-    private val captureInterval = 30_000L // 30 seconds
+    private val cameraExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        cameraView = findViewById(R.id.cameraView)
-        peopleText = findViewById(R.id.peopleCountText)
-        densityText = findViewById(R.id.densityText)
+        previewView = findViewById(R.id.previewView)
+        peopleCountText = findViewById(R.id.peopleCountText)
+        bgSwitch = findViewById(R.id.bgSwitch)
 
-        startCamera()
+        // Camera permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                100
+            )
+        } else {
+            startCamera()
+        }
+
+        // 🔁 Foreground / Background switch
+        bgSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                // Start background foreground-service
+                stopCamera()
+                val intent = Intent(this, PeopleCountService::class.java)
+                ContextCompat.startForegroundService(this, intent)
+                Toast.makeText(this, "Background counting ON", Toast.LENGTH_SHORT).show()
+            } else {
+                // Stop service, start camera preview again
+                stopService(Intent(this, PeopleCountService::class.java))
+                startCamera()
+                Toast.makeText(this, "Foreground counting ON", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun startCamera() {
@@ -38,39 +68,48 @@ class MainActivity : AppCompatActivity() {
             val cameraProvider = cameraProviderFuture.get()
 
             val preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(cameraView.surfaceProvider)
+                it.setSurfaceProvider(previewView.surfaceProvider)
             }
 
-            val analyzer = ImageAnalysis.Builder()
+            val imageAnalysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
 
-            val peopleAnalyzer = PeopleAnalyzer { count, density ->
-                peopleText.text = "People: $count"
-                densityText.text = "Density: $density"
-            }
-
-            // Run analyzer ONLY every 30 seconds
-            handler.post(object : Runnable {
-                override fun run() {
-                    analyzer.setAnalyzer(
-                        Executors.newSingleThreadExecutor(),
-                        peopleAnalyzer
-                    )
-                    handler.postDelayed(this, captureInterval)
+            imageAnalysis.setAnalyzer(
+                cameraExecutor,
+                PeopleAnalyzer { count,mode ->
+                    runOnUiThread {
+                        peopleCountText.text = "People Count: $count\nMode: $mode"
+                    }
                 }
-            })
+            )
 
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-            cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(
-                this,
-                cameraSelector,
-                preview,
-                analyzer
-            )
+            try {
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(
+                    this,
+                    cameraSelector,
+                    preview,
+                    imageAnalysis
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
 
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun stopCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        cameraProviderFuture.addListener({
+            cameraProviderFuture.get().unbindAll()
+        }, ContextCompat.getMainExecutor(this))
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cameraExecutor.shutdown()
     }
 }

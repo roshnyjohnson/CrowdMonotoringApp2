@@ -15,6 +15,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "CrowdMonitoringApp2"
-include(":app", ":sdk")
+include(":app")
 
-include(":opencv")
+//include(":opencv")
