@@ -37,8 +37,13 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.3.4")
     implementation("androidx.camera:camera-view:1.3.4")
 
+<<<<<<< Updated upstream
     // ML Kit
     implementation("com.google.mlkit:object-detection:17.0.1")
+=======
+    // ML Kit Face Detection (Much better for counting people)
+    implementation("com.google.mlkit:face-detection:16.1.6")
+>>>>>>> Stashed changes
 
     // UI
     implementation("androidx.appcompat:appcompat:1.6.1")

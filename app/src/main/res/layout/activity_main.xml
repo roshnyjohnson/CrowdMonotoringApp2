@@ -29,4 +29,12 @@
         android:gravity="center"
         android:padding="16dp" />
 
+    <TextView
+        android:id="@+id/debugText"
+        android:text="Debug Info:"
+        android:textSize="12sp"
+        android:padding="8dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
 </LinearLayout>
