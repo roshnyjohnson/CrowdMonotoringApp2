@@ -15,9 +15,12 @@ android {
         versionName = "1.0"
     }
 
-    buildFeatures {
-        viewBinding = true
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+        }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -26,26 +29,27 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    
+    aaptOptions {
+        noCompress("tflite")
+    }
 
+    // Disable the feature causing the warning
+    buildFeatures {
+        mlModelBinding = false
+    }
 }
 
 dependencies {
-
-    // CameraX
     implementation("androidx.camera:camera-core:1.3.4")
     implementation("androidx.camera:camera-camera2:1.3.4")
     implementation("androidx.camera:camera-lifecycle:1.3.4")
     implementation("androidx.camera:camera-view:1.3.4")
 
-<<<<<<< Updated upstream
-    // ML Kit
-    implementation("com.google.mlkit:object-detection:17.0.1")
-=======
-    // ML Kit Face Detection (Much better for counting people)
-    implementation("com.google.mlkit:face-detection:16.1.6")
->>>>>>> Stashed changes
+    // MediaPipe - The correct library for your model
+    implementation("com.google.mediapipe:tasks-vision:0.10.14")
 
-    // UI
-    implementation("androidx.appcompat:appcompat:1.6.1")
-    implementation("com.google.android.material:material:1.11.0")
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.google.android.material:material:1.12.0")
 }
